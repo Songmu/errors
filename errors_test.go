@@ -19,6 +19,43 @@ type nilError struct{}
 
 func (*nilError) Error() string { return "typed nil" }
 
+type mutableError struct {
+	message string
+	calls   int
+}
+
+func (e *mutableError) Error() string {
+	e.calls++
+	return e.message
+}
+
+func TestJoinLazyMessage(t *testing.T) {
+	var typedNil *mutableError
+	if err := Join(typedNil); err == nil || !Is(err, typedNil) {
+		t.Fatal("Join must retain typed nil without calling Error")
+	}
+	child := &mutableError{message: "before"}
+	got, want := Join(child, io.EOF), stderrors.Join(child, io.EOF)
+	for range 100 {
+		got = Join(got, io.EOF)
+		want = stderrors.Join(want, io.EOF)
+	}
+	if child.calls != 0 {
+		t.Fatal("Join evaluated child messages during construction")
+	}
+	child.message = "after"
+	if got.Error() != want.Error() {
+		t.Fatal("Join did not reflect the current child message")
+	}
+	if text := fmt.Sprintf("%+v", got); !strings.HasPrefix(text, "after\nEOF") {
+		t.Fatal("detailed Join formatting used a stale message")
+	}
+	child.message = "latest"
+	if text := fmt.Sprintf("%s", got); text != want.Error() {
+		t.Fatal("ordinary Join formatting used a stale message")
+	}
+}
+
 func TestConstructors(t *testing.T) {
 	a, b := stderrors.New("a"), namedError("b")
 	var typedNil *nilError

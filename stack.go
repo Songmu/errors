@@ -20,7 +20,7 @@ func capture(message string) trace {
 	if truncated {
 		n = maxStackPCs
 	}
-	return trace{message: message, pcs: pcs[:n:n], truncated: truncated}
+	return trace{message: message, pcs: append([]uintptr(nil), pcs[:n]...), truncated: truncated}
 }
 
 func (t *trace) Error() string { return t.message }

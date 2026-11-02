@@ -41,8 +41,9 @@ func Join(errs ...error) error {
 		return nil
 	}
 	return &multiError{
-		trace:    capture(err.Error()),
+		trace:    capture(""),
 		children: err.(interface{ Unwrap() []error }).Unwrap(),
+		joined:   err,
 	}
 }
 
@@ -79,10 +80,18 @@ func (e *singleError) Format(s fmt.State, verb rune) {
 type multiError struct {
 	trace
 	children []error
+	joined   error
 }
 
 func (e *multiError) Unwrap() []error { return e.children }
 
+func (e *multiError) Error() string {
+	if e.joined != nil {
+		return e.joined.Error()
+	}
+	return e.message
+}
+
 func (e *multiError) Format(s fmt.State, verb rune) {
-	format(s, verb, e.message, e)
+	format(s, verb, e.Error(), e)
 }

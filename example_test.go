@@ -26,8 +26,8 @@ func ExampleJoin() {
 
 func ExampleFormatter() {
 	err := fmt.Errorf("start service: %w", errors.New("read failed"))
-	fmt.Printf("%s\n", errors.Formatter(err))
 	// Use %+v instead of %s to include the retained stack trace.
+	fmt.Printf("%s\n", errors.Formatter(err))
 	// Output:
 	// start service: read failed
 }
