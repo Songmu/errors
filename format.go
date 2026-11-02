@@ -5,11 +5,14 @@ import (
 	"io"
 	"runtime"
 	"strings"
+	"unicode/utf8"
 )
 
 const (
-	maxTreeDepth = 64
-	maxTreeNodes = 1024
+	maxTreeDepth    = 64
+	maxTreeNodes    = 1024
+	maxMessageBytes = 256
+	maxMessageLines = 4
 )
 
 // Formatter returns an output-only adapter for err. It does not capture a
@@ -18,6 +21,8 @@ const (
 //
 // A nil error formats as "<nil>". Traversal stops at a depth of 64 or 1024
 // nodes and prints an omission marker, including for cyclic error trees.
+// The root message is complete; nested Join messages are summarized, and other
+// nested messages are limited to four lines and 256 bytes with an omission marker.
 // Error and Unwrap methods must themselves terminate.
 func Formatter(err error) fmt.Formatter { return formatter{err} }
 
@@ -71,7 +76,7 @@ func (p *treePrinter) visit(err error, path string, depth int, parent []runtime.
 	}
 	fmt.Fprintf(p.out, "%s%s [%s]\n", indent, path, kind)
 	if depth != 0 {
-		fmt.Fprintf(p.out, "%s  %s\n", indent, strings.ReplaceAll(err.Error(), "\n", "\n"+indent+"  "))
+		fmt.Fprintf(p.out, "%s  %s\n", indent, strings.ReplaceAll(nodeMessage(err), "\n", "\n"+indent+"  "))
 	}
 	if traced {
 		stack := t.stack()
@@ -106,6 +111,34 @@ func (p *treePrinter) visit(err error, path string, depth int, parent []runtime.
 			p.child(child, path+"/0", depth+1, parent)
 		}
 	}
+}
+
+func nodeMessage(err error) string {
+	if e, ok := err.(*multiError); ok && e.joined != nil {
+		return fmt.Sprintf("%d joined causes (messages in child nodes)", len(e.children))
+	}
+	message := err.Error()
+	end := len(message)
+	if end > maxMessageBytes {
+		end = maxMessageBytes
+		for end > 0 && !utf8.RuneStart(message[end]) {
+			end--
+		}
+	}
+	lines := 1
+	for i := 0; i < end; i++ {
+		if message[i] == '\n' {
+			if lines == maxMessageLines {
+				end = i
+				break
+			}
+			lines++
+		}
+	}
+	if end < len(message) {
+		return message[:end] + "\n... message truncated"
+	}
+	return message
 }
 
 func (p *treePrinter) child(err error, path string, depth int, parent []runtime.Frame) bool {

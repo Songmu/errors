@@ -43,6 +43,11 @@ then a `traces:` tree in outer-to-inner order. Each node has a branch path
 indented `file:line`. Standard wrappers remain visible as untraced nodes.
 The tree format is library-specific, not a Go standard.
 
+The root message is always complete. Nested library `Join` nodes show the
+number of causes instead of repeating their aggregate messages. Other nested
+messages are limited to four lines and 256 bytes, with an explicit truncation
+marker. This keeps deeply nested aggregates from flooding diagnostic output.
+
 Standard `fmt.Errorf` and `errors.Join` do not propagate detailed formatting.
 If either is outermost, use the output-only adapter:
 

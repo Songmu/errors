@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"unicode/utf8"
 )
 
 type namedError string
@@ -256,6 +257,40 @@ func TestTraversalLimits(t *testing.T) {
 	mixed := cyclicError{nil, cycle, New("after cycle")}
 	if got := fmt.Sprintf("%+v", Formatter(mixed)); !strings.Contains(got, "root/2 [capture]") {
 		t.Fatal("depth-limited branch suppressed a later sibling")
+	}
+}
+
+func TestNestedMessages(t *testing.T) {
+	var aggregate error
+	leaf := &mutableError{message: "<item>"}
+	for range 1000 {
+		aggregate = Join(aggregate, leaf)
+	}
+	root := aggregate.Error()
+	output := fmt.Sprintf("%+v", aggregate)
+	if !strings.HasPrefix(output, root+"\n\ntraces:\n") {
+		t.Fatal("aggregate root message was changed")
+	}
+	details := output[len(root):]
+	if strings.Count(details, "<item>") > maxTreeDepth || !strings.Contains(details, "2 joined causes") {
+		t.Fatal("nested joins repeated aggregate messages")
+	}
+	if leaf.calls > 2000+maxTreeDepth {
+		t.Fatal("nested joins repeatedly evaluated aggregate messages")
+	}
+	for _, message := range []string{
+		strings.Repeat("a", maxMessageBytes-1) + "é end",
+		"one\ntwo\nthree\nfour\nfive",
+	} {
+		err := Errorf("context: %w", namedError(message))
+		output := fmt.Sprintf("%+v", err)
+		if !strings.HasPrefix(output, err.Error()) {
+			t.Fatal("root message was truncated")
+		}
+		details := output[len(err.Error()):]
+		if !utf8.ValidString(details) || !strings.Contains(details, "... message truncated") || strings.Contains(details, message) {
+			t.Fatal("nested message was not safely truncated")
+		}
 	}
 }
 
