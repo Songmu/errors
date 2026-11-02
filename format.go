@@ -90,7 +90,11 @@ func (p *treePrinter) visit(err error, path string, depth int, parent []runtime.
 			fmt.Fprintf(p.out, "%s  %s\n%s    %s:%d\n", indent, frame.Function, indent, frame.File, frame.Line)
 		}
 		if common > 0 {
-			fmt.Fprintf(p.out, "%s  ... %d common caller frames omitted\n", indent, common)
+			unit := "frames"
+			if common == 1 {
+				unit = "frame"
+			}
+			fmt.Fprintf(p.out, "%s  ... %d common caller %s omitted\n", indent, common, unit)
 		}
 		if stack.truncated {
 			fmt.Fprintf(p.out, "%s  ... stack truncated after %d PCs\n", indent, maxStackPCs)
@@ -115,7 +119,11 @@ func (p *treePrinter) visit(err error, path string, depth int, parent []runtime.
 
 func nodeMessage(err error) string {
 	if e, ok := err.(*multiError); ok && e.joined != nil {
-		return fmt.Sprintf("%d joined causes (messages in child nodes)", len(e.children))
+		unit := "causes"
+		if len(e.children) == 1 {
+			unit = "cause"
+		}
+		return fmt.Sprintf("%d joined %s (see child details)", len(e.children), unit)
 	}
 	message := err.Error()
 	end := len(message)

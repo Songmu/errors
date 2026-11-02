@@ -228,6 +228,9 @@ func TestDetailedTree(t *testing.T) {
 	if !strings.Contains(got, "root [wrapper]") || !strings.Contains(got, "root/0 [join]") || strings.Contains(got, "standard") {
 		t.Fatalf("custom unwrap labels must describe structure, not origin:\n%s", got)
 	}
+	if got := fmt.Sprintf("%+v", Errorf("%w", Join(io.EOF))); !strings.Contains(got, "1 joined cause (see child details)") {
+		t.Fatalf("single joined cause must use singular wording:\n%s", got)
+	}
 }
 
 type customWrapper struct{ error }
@@ -315,6 +318,13 @@ func TestCommonSuffix(t *testing.T) {
 	}
 	if got := commonSuffix([]runtime.Frame{a, b}, []runtime.Frame{a, b}); got != 1 {
 		t.Fatalf("capture frame was removed: %d", got)
+	}
+	var pcs [2]uintptr
+	runtime.Callers(1, pcs[:])
+	child := &plainError{trace: trace{message: "child", pcs: pcs[:]}}
+	parent := &singleError{trace: trace{message: "parent", pcs: pcs[:]}, child: child}
+	if got := fmt.Sprintf("%+v", parent); !strings.Contains(got, "1 common caller frame omitted") {
+		t.Fatalf("one omitted frame must use singular wording:\n%s", got)
 	}
 }
 
