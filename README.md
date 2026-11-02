@@ -76,10 +76,12 @@ add context with `Errorf("operation: %w", ErrSentinel)` at the return site.
 Use plain `%w` for wrapping; `%+w` can embed the child's detailed output in the
 message, just as with `fmt.Errorf`.
 
-For structured logs, explicitly format details at the output boundary, for
-example `fmt.Sprintf("%+v", errors.Formatter(err))`. There is no logger-specific
-integration. Stack capture adds cost; the small API and lack of dependencies
-are not a claim of standard-library performance.
+`slog.TextHandler` formats error attributes with `%+v`, so passing a traced error
+directly can include traces and local source paths. `slog.JSONHandler` normally
+uses `Error()` instead. Pass `err.Error()` for message-only attributes, or
+`fmt.Sprintf("%+v", errors.Formatter(err))` for explicit details with either
+handler. There is no logger-specific integration. Stack capture adds cost; the
+small API and lack of dependencies are not a claim of standard-library performance.
 
 ## Installation
 
