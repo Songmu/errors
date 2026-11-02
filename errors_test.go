@@ -205,7 +205,7 @@ func TestDetailedTree(t *testing.T) {
 	err := Errorf("operation: %w", standard)
 	for _, value := range []any{err, Formatter(err)} {
 		got := fmt.Sprintf("%+v", value)
-		for _, part := range []string{err.Error() + "\n\ntraces:\n", "root [capture]", "root/0 [standard wrapper]", "root/0/0 [standard join]", "root/0/0/0 [capture]", "root/0/0/1 [capture]", "TestDetailedTree", "common caller frames omitted"} {
+		for _, part := range []string{err.Error() + "\n\ntraces:\n", "root [capture]", "root/0 [wrapper]", "root/0/0 [join]", "root/0/0/0 [capture]", "root/0/0/1 [capture]", "TestDetailedTree", "common caller frames omitted"} {
 			if !strings.Contains(got, part) {
 				t.Errorf("missing %q in:\n%s", part, got)
 			}
@@ -223,7 +223,16 @@ func TestDetailedTree(t *testing.T) {
 	if got := fmt.Sprintf("%+v", Formatter(shared)); strings.Count(got, "TestDetailedTree") != 2 {
 		t.Fatalf("shared sibling traces must both remain:\n%s", got)
 	}
+	custom := customWrapper{cyclicError{a, b}}
+	got = fmt.Sprintf("%+v", Formatter(custom))
+	if !strings.Contains(got, "root [wrapper]") || !strings.Contains(got, "root/0 [join]") || strings.Contains(got, "standard") {
+		t.Fatalf("custom unwrap labels must describe structure, not origin:\n%s", got)
+	}
 }
+
+type customWrapper struct{ error }
+
+func (e customWrapper) Unwrap() error { return e.error }
 
 type cyclicError []error
 

@@ -69,9 +69,9 @@ func (p *treePrinter) visit(err error, path string, depth int, parent []runtime.
 	} else {
 		switch err.(type) {
 		case interface{ Unwrap() []error }:
-			kind = "standard join"
+			kind = "join"
 		case interface{ Unwrap() error }:
-			kind = "standard wrapper"
+			kind = "wrapper"
 		}
 	}
 	fmt.Fprintf(p.out, "%s%s [%s]\n", indent, path, kind)
