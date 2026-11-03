@@ -389,6 +389,27 @@ func recursiveError(depth int) error {
 	return err
 }
 
+func TestTruncatedStackParent(t *testing.T) {
+	var pcs [3]uintptr
+	n := runtime.Callers(1, pcs[:])
+	leaf := &plainError{trace: trace{message: "leaf", pcs: pcs[:n]}}
+	truncated := &singleError{
+		trace: trace{message: "truncated", pcs: pcs[:n], truncated: true},
+		child: leaf,
+	}
+	err := &multiError{
+		trace:    trace{message: "root", pcs: pcs[:n]},
+		children: []error{truncated, leaf},
+	}
+	got := fmt.Sprintf("%+v", err)
+	first, later, found := strings.Cut(got, "    root/1 [capture]\n")
+	if !found || !strings.Contains(first, "root/0/0 [capture]") ||
+		strings.Contains(first, "common caller") ||
+		!strings.Contains(later, "common caller") {
+		t.Fatalf("truncated branch changed ancestor handling:\n%s", got)
+	}
+}
+
 func TestStackLimitAndConcurrentFormatting(t *testing.T) {
 	deep := recursiveError(maxStackPCs + 10)
 	stack := deep.(interface{ stack() *trace }).stack()

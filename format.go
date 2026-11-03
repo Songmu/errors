@@ -109,30 +109,36 @@ func (p *treePrinter) visit(err error, path string, depth int, parent []runtime.
 		fmt.Fprintf(p.out, "%s  %s\n", indent, strings.ReplaceAll(nodeMessage(err), "\n", "\n"+indent+"  "))
 	}
 	if traced {
-		stack := t.stack()
-		current := frames(stack.pcs)
-		common := 0
-		// A truncated tail is not necessarily the bottom of a stack.
-		if !stack.truncated {
-			common = commonSuffix(current, parent)
-		}
-		for _, frame := range current[:len(current)-common] {
-			fmt.Fprintf(p.out, "%s  %s\n%s    %s:%d\n", indent, frame.Function, indent, frame.File, frame.Line)
-		}
-		if common > 0 {
-			unit := "frames"
-			if common == 1 {
-				unit = "frame"
-			}
-			fmt.Fprintf(p.out, "%s  ... %d common caller %s omitted\n", indent, common, unit)
-		}
-		if stack.truncated {
-			fmt.Fprintf(p.out, "%s  ... stack truncated after %d PCs\n", indent, maxStackPCs)
-			parent = nil
-		} else {
-			parent = current
-		}
+		parent = p.printStack(t.stack(), indent, parent)
 	}
+	p.visitChildren(err, path, depth, parent)
+}
+
+func (p *treePrinter) printStack(stack *trace, indent string, parent []runtime.Frame) []runtime.Frame {
+	current := frames(stack.pcs)
+	common := 0
+	// A truncated tail is not necessarily the bottom of a stack.
+	if !stack.truncated {
+		common = commonSuffix(current, parent)
+	}
+	for _, frame := range current[:len(current)-common] {
+		fmt.Fprintf(p.out, "%s  %s\n%s    %s:%d\n", indent, frame.Function, indent, frame.File, frame.Line)
+	}
+	if common > 0 {
+		unit := "frames"
+		if common == 1 {
+			unit = "frame"
+		}
+		fmt.Fprintf(p.out, "%s  ... %d common caller %s omitted\n", indent, common, unit)
+	}
+	if stack.truncated {
+		fmt.Fprintf(p.out, "%s  ... stack truncated after %d PCs\n", indent, maxStackPCs)
+		return nil
+	}
+	return current
+}
+
+func (p *treePrinter) visitChildren(err error, path string, depth int, parent []runtime.Frame) {
 	switch e := err.(type) {
 	case interface{ Unwrap() []error }:
 		for i, child := range e.Unwrap() {
