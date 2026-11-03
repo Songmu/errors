@@ -51,9 +51,18 @@ func TestJoinLazyMessage(t *testing.T) {
 	if text := fmt.Sprintf("%+v", got); !strings.HasPrefix(text, "after\nEOF") {
 		t.Fatal("detailed Join formatting used a stale message")
 	}
-	child.message = "latest"
-	if text := fmt.Sprintf("%s", got); text != want.Error() {
-		t.Fatal("ordinary Join formatting used a stale message")
+	for _, format := range []string{"%v", "%s"} {
+		for _, value := range []any{got, Formatter(got)} {
+			child.message += " latest"
+			expected := want.Error()
+			calls := child.calls
+			if text := fmt.Sprintf(format, value); text != expected {
+				t.Fatal("ordinary Join formatting used a stale message")
+			}
+			if child.calls != calls+1 {
+				t.Fatal("ordinary Join formatting must evaluate each child message once")
+			}
+		}
 	}
 }
 
@@ -181,7 +190,7 @@ func TestCaptureCallSite(t *testing.T) {
 
 func TestOrdinaryFormatting(t *testing.T) {
 	for _, err := range []error{New("héllo\nworld"), Errorf("read: %w", io.EOF), Join(io.EOF, io.ErrClosedPipe)} {
-		for _, format := range []string{"%s", "%v", "%q", "%+q", "%#q", "%20s", "%-20v", "%.3s", "%20.3q", "%#v", "%x"} {
+		for _, format := range []string{"%s", "%v", "%q", "%+q", "%#q", "%20s", "%-20v", "%.3s", "%.0v", "%20.3q", "%#v", "%x", "% v", "%+s", "%-v", "%#s", "%0s"} {
 			want := fmt.Sprintf(format, err.Error())
 			for _, value := range []any{err, Formatter(err)} {
 				if got := fmt.Sprintf(format, value); got != want {
@@ -193,6 +202,11 @@ func TestOrdinaryFormatting(t *testing.T) {
 	for _, format := range []string{"%v", "%+v", "%s", "%q"} {
 		if got, want := fmt.Sprintf(format, Formatter(nil)), fmt.Sprintf(format, "<nil>"); got != want {
 			t.Fatalf("nil: got %q, want %q", got, want)
+		}
+	}
+	for _, format := range []string{"%v", "%s"} {
+		if got := fmt.Sprintf(format, Formatter((*nilError)(nil))); got != "typed nil" {
+			t.Fatalf("safe typed nil: got %q, want %q", got, "typed nil")
 		}
 	}
 	child := New("child")
@@ -247,6 +261,13 @@ func (panicUnwrapError) Unwrap() error { panic("bad unwrap") }
 
 func TestDetailedPanicRecovery(t *testing.T) {
 	var typedNil *plainError
+	for _, format := range []string{"%v", "%s"} {
+		for _, value := range []any{Formatter(typedNil), Join(typedNil)} {
+			if got := fmt.Sprintf(format, value); !strings.Contains(got, "PANIC=Format") {
+				t.Errorf("ordinary formatting must retain fmt panic handling: %q", got)
+			}
+		}
+	}
 	broken := panicUnwrapError{}
 	later := New("later")
 	for _, value := range []any{

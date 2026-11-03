@@ -45,6 +45,15 @@ func format(s fmt.State, verb rune, err error) {
 		}
 	}
 	if !detailed {
+		if (verb == 'v' || verb == 's') &&
+			!s.Flag(' ') && !s.Flag('+') && !s.Flag('-') && !s.Flag('#') && !s.Flag('0') {
+			_, width := s.Width()
+			_, precision := s.Precision()
+			if !width && !precision {
+				io.WriteString(s, message)
+				return
+			}
+		}
 		fmt.Fprintf(s, fmt.FormatString(s, verb), message)
 		return
 	}
