@@ -21,23 +21,30 @@ const (
 //
 // A nil error formats as "<nil>". Traversal stops at a depth of 64 or 1024
 // nodes and prints an omission marker, including for cyclic error trees.
-// The root message is complete; nested Join messages are summarized, and other
-// nested messages are limited to four lines and 256 bytes with an omission marker.
+// The root message is complete when Error succeeds. Nested Join messages are
+// summarized; other nested messages are limited to four lines and 256 bytes
+// with an omission marker.
+// Panics are marked without suppressing later siblings.
 // Error and Unwrap methods must themselves terminate.
 func Formatter(err error) fmt.Formatter { return formatter{err} }
 
 type formatter struct{ err error }
 
 func (f formatter) Format(s fmt.State, verb rune) {
-	message := "<nil>"
-	if f.err != nil {
-		message = f.err.Error()
-	}
-	format(s, verb, message, f.err)
+	format(s, verb, f.err)
 }
 
-func format(s fmt.State, verb rune, message string, err error) {
-	if verb != 'v' || !s.Flag('+') {
+func format(s fmt.State, verb rune, err error) {
+	detailed := verb == 'v' && s.Flag('+')
+	message := "<nil>"
+	if err != nil {
+		if detailed {
+			message = diagnosticMessage(err)
+		} else {
+			message = err.Error()
+		}
+	}
+	if !detailed {
 		fmt.Fprintf(s, fmt.FormatString(s, verb), message)
 		return
 	}
@@ -50,6 +57,15 @@ func format(s fmt.State, verb rune, message string, err error) {
 	p.visit(err, "root", 0, nil)
 }
 
+func diagnosticMessage(err error) (message string) {
+	defer func() {
+		if recover() != nil {
+			message = "<error message unavailable (panic)>"
+		}
+	}()
+	return err.Error()
+}
+
 type treePrinter struct {
 	out   io.Writer
 	nodes int
@@ -57,6 +73,11 @@ type treePrinter struct {
 
 func (p *treePrinter) visit(err error, path string, depth int, parent []runtime.Frame) {
 	indent := strings.Repeat("  ", depth+1)
+	defer func() {
+		if recover() != nil {
+			fmt.Fprintf(p.out, "%s%s ... node details unavailable (panic)\n", indent, path)
+		}
+	}()
 	p.nodes++
 	if depth >= maxTreeDepth {
 		fmt.Fprintf(p.out, "%s%s ... depth limit reached\n", indent, path)
@@ -125,7 +146,7 @@ func nodeMessage(err error) string {
 		}
 		return fmt.Sprintf("%d joined %s (see child details)", len(e.children), unit)
 	}
-	message := err.Error()
+	message := diagnosticMessage(err)
 	end := len(message)
 	if end > maxMessageBytes {
 		end = maxMessageBytes

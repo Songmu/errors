@@ -237,6 +237,33 @@ type customWrapper struct{ error }
 
 func (e customWrapper) Unwrap() error { return e.error }
 
+type panicUnwrapError struct{}
+
+func (panicUnwrapError) Error() string { return "bad unwrap" }
+func (panicUnwrapError) Unwrap() error { panic("bad unwrap") }
+
+func TestDetailedPanicRecovery(t *testing.T) {
+	var typedNil *plainError
+	broken := panicUnwrapError{}
+	later := New("later")
+	for _, value := range []any{
+		Errorf("%w / %w / %w", typedNil, broken, later),
+		Join(typedNil, broken, later),
+		Formatter(stderrors.Join(typedNil, broken, later)),
+	} {
+		got := fmt.Sprintf("%+v", value)
+		if !strings.Contains(got, "root/2 [capture]") ||
+			strings.Count(got, "node details unavailable (panic)") != 2 ||
+			strings.Contains(got, "PANIC=Format") {
+			t.Errorf("panicking nodes suppressed later causes:\n%s", got)
+		}
+	}
+	safe := Errorf("%w / %w", (*nilError)(nil), later)
+	if got := fmt.Sprintf("%+v", safe); !strings.Contains(got, "root/0 [untraced]\n      typed nil") {
+		t.Fatalf("safe nil-receiver methods must still be used:\n%s", got)
+	}
+}
+
 type cyclicError []error
 
 func (cyclicError) Error() string     { return "cycle" }

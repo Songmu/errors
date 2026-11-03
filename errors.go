@@ -63,7 +63,7 @@ func Unwrap(err error) error { return stderrors.Unwrap(err) }
 type plainError struct{ trace }
 
 func (e *plainError) Format(s fmt.State, verb rune) {
-	format(s, verb, e.message, e)
+	format(s, verb, e)
 }
 
 type singleError struct {
@@ -74,7 +74,7 @@ type singleError struct {
 func (e *singleError) Unwrap() error { return e.child }
 
 func (e *singleError) Format(s fmt.State, verb rune) {
-	format(s, verb, e.message, e)
+	format(s, verb, e)
 }
 
 type multiError struct {
@@ -93,5 +93,5 @@ func (e *multiError) Error() string {
 }
 
 func (e *multiError) Format(s fmt.State, verb rune) {
-	format(s, verb, e.Error(), e)
+	format(s, verb, e)
 }
