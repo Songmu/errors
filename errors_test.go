@@ -347,7 +347,7 @@ func TestNestedMessages(t *testing.T) {
 		want    string
 	}{
 		{"exact bytes", strings.Repeat("a", maxMessageBytes), strings.Repeat("a", maxMessageBytes)},
-		{"split rune", strings.Repeat("a", maxMessageBytes-1) + "é end", strings.Repeat("a", maxMessageBytes-1) + "\n... message truncated"},
+		{"split rune", strings.Repeat("a", maxMessageBytes-2) + "€ end", strings.Repeat("a", maxMessageBytes-2) + "\n... message truncated"},
 		{"complete rune", strings.Repeat("a", maxMessageBytes-2) + "é end", strings.Repeat("a", maxMessageBytes-2) + "é\n... message truncated"},
 		{"exact lines", "one\ntwo\nthree\nfour", "one\ntwo\nthree\nfour"},
 		{"extra line", "one\ntwo\nthree\nfour\nfive", "one\ntwo\nthree\nfour\n... message truncated"},
@@ -376,6 +376,7 @@ func TestEmptyStackFormatting(t *testing.T) {
 	got := fmt.Sprintf("%+v", Formatter(err))
 	if !strings.HasPrefix(got, "empty\n\ntraces:\n  root [capture]\n    root/0 [capture]\n") ||
 		!strings.Contains(got, "TestEmptyStackFormatting") ||
+		strings.Contains(got, "common caller") ||
 		strings.Contains(got, "unavailable") {
 		t.Fatalf("empty stack suppressed child details:\n%s", got)
 	}
