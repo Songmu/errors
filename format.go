@@ -35,27 +35,30 @@ func (f formatter) Format(s fmt.State, verb rune) {
 }
 
 func format(s fmt.State, verb rune, err error) {
-	detailed := verb == 'v' && s.Flag('+')
+	if verb == 'v' && s.Flag('+') {
+		formatDetailed(s, err)
+		return
+	}
 	message := "<nil>"
 	if err != nil {
-		if detailed {
-			message = diagnosticMessage(err)
-		} else {
-			message = err.Error()
+		message = err.Error()
+	}
+	if (verb == 'v' || verb == 's') &&
+		!s.Flag(' ') && !s.Flag('+') && !s.Flag('-') && !s.Flag('#') && !s.Flag('0') {
+		_, hasWidth := s.Width()
+		_, hasPrecision := s.Precision()
+		if !hasWidth && !hasPrecision {
+			io.WriteString(s, message)
+			return
 		}
 	}
-	if !detailed {
-		if (verb == 'v' || verb == 's') &&
-			!s.Flag(' ') && !s.Flag('+') && !s.Flag('-') && !s.Flag('#') && !s.Flag('0') {
-			_, hasWidth := s.Width()
-			_, hasPrecision := s.Precision()
-			if !hasWidth && !hasPrecision {
-				io.WriteString(s, message)
-				return
-			}
-		}
-		fmt.Fprintf(s, fmt.FormatString(s, verb), message)
-		return
+	fmt.Fprintf(s, fmt.FormatString(s, verb), message)
+}
+
+func formatDetailed(s fmt.State, err error) {
+	message := "<nil>"
+	if err != nil {
+		message = diagnosticMessage(err)
 	}
 	io.WriteString(s, message)
 	if err == nil {
