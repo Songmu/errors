@@ -15,7 +15,7 @@ var ErrUnsupported = stderrors.ErrUnsupported
 
 // New returns an error with text and a stack captured at the call site.
 func New(text string) error {
-	return &plainError{trace: capture(stderrors.New(text).Error())}
+	return &plainError{trace: capture(text)}
 }
 
 // Errorf formats an error using fmt.Errorf, preserving its message and unwrap

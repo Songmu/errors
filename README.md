@@ -88,7 +88,11 @@ small API and lack of dependencies are not a claim of standard-library performan
 
 ## Installation
 
-Requires Go 1.27.3 or later.
+Requires Go 1.26 or later for the standard library's `errors.AsType`.
+
+The `go` directive in `go.mod` records this library's oldest supported Go
+version, not a pinned development toolchain. Newer Go toolchains may be used
+without raising that minimum.
 
 ```console
 % go get github.com/Songmu/errors
