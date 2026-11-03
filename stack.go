@@ -32,7 +32,7 @@ func frames(pcs []uintptr) []runtime.Frame {
 		return nil
 	}
 	iter := runtime.CallersFrames(pcs)
-	var result []runtime.Frame
+	result := make([]runtime.Frame, 0, len(pcs))
 	for {
 		frame, more := iter.Next()
 		result = append(result, frame)

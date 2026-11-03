@@ -4,6 +4,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io"
+	"runtime"
 	"testing"
 )
 
@@ -48,6 +49,26 @@ func BenchmarkJoin(b *testing.B) {
 			for b.Loop() {
 				benchmarkError = tc.new(io.EOF, io.ErrClosedPipe)
 			}
+		})
+	}
+}
+
+func BenchmarkFrames(b *testing.B) {
+	for _, tc := range []struct {
+		name string
+		err  error
+	}{
+		{"short", New("short")},
+		{"long", recursiveError(maxStackPCs + 10)},
+	} {
+		pcs := tc.err.(interface{ stack() *trace }).stack().pcs
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			var result []runtime.Frame
+			for b.Loop() {
+				result = frames(pcs)
+			}
+			runtime.KeepAlive(result)
 		})
 	}
 }
