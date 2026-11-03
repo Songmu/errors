@@ -363,7 +363,8 @@ func TestNestedMessages(t *testing.T) {
 				t.Fatal("root message was truncated")
 			}
 			details := output[len(err.Error()):]
-			if !utf8.ValidString(details) || !strings.Contains(details, strings.ReplaceAll(tc.want, "\n", "\n      ")) {
+			wantDetails := "    root/0 [untraced]\n      " + strings.ReplaceAll(tc.want, "\n", "\n      ") + "\n"
+			if !utf8.ValidString(details) || !strings.HasSuffix(details, wantDetails) {
 				t.Fatal("nested message was not safely displayed")
 			}
 		})
