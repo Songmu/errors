@@ -54,7 +54,7 @@ func BenchmarkJoin(b *testing.B) {
 
 func BenchmarkFormatting(b *testing.B) {
 	err := Errorf("read: %w", Join(New("failed"), io.EOF))
-	for _, format := range []string{"%v", "%+v"} {
+	for _, format := range []string{"%v", "%s", "%+v"} {
 		b.Run(format, func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
