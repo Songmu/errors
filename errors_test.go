@@ -59,6 +59,7 @@ func TestJoinLazyMessage(t *testing.T) {
 
 func TestConstructors(t *testing.T) {
 	a, b := stderrors.New("a"), namedError("b")
+	standardMulti, tracedMulti := stderrors.Join(a, b), Join(a, b)
 	var typedNil *nilError
 	invalidFormat := "%w"
 	tests := []struct {
@@ -76,6 +77,8 @@ func TestConstructors(t *testing.T) {
 		{"typed nil wrap", fmt.Errorf("%w", typedNil), Errorf("%w", typedNil)},
 		{"join", stderrors.Join(nil, a, b), Join(nil, a, b)},
 		{"single join", stderrors.Join(a), Join(a)},
+		{"single standard multi join", stderrors.Join(standardMulti), Join(standardMulti)},
+		{"single traced multi join", stderrors.Join(tracedMulti), Join(tracedMulti)},
 		{"nil join", stderrors.Join(nil, nil), Join(nil, nil)},
 		{"empty join", stderrors.Join(), Join()},
 		{"typed nil join", stderrors.Join(typedNil), Join(typedNil)},
