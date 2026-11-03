@@ -341,19 +341,42 @@ func TestNestedMessages(t *testing.T) {
 	if leaf.calls > 2000+maxTreeDepth {
 		t.Fatal("nested joins repeatedly evaluated aggregate messages")
 	}
-	for _, message := range []string{
-		strings.Repeat("a", maxMessageBytes-1) + "é end",
-		"one\ntwo\nthree\nfour\nfive",
+	for _, tc := range []struct {
+		name    string
+		message string
+		want    string
+	}{
+		{"exact bytes", strings.Repeat("a", maxMessageBytes), strings.Repeat("a", maxMessageBytes)},
+		{"split rune", strings.Repeat("a", maxMessageBytes-1) + "é end", strings.Repeat("a", maxMessageBytes-1) + "\n... message truncated"},
+		{"complete rune", strings.Repeat("a", maxMessageBytes-2) + "é end", strings.Repeat("a", maxMessageBytes-2) + "é\n... message truncated"},
+		{"exact lines", "one\ntwo\nthree\nfour", "one\ntwo\nthree\nfour"},
+		{"extra line", "one\ntwo\nthree\nfour\nfive", "one\ntwo\nthree\nfour\n... message truncated"},
 	} {
-		err := Errorf("context: %w", namedError(message))
-		output := fmt.Sprintf("%+v", err)
-		if !strings.HasPrefix(output, err.Error()) {
-			t.Fatal("root message was truncated")
-		}
-		details := output[len(err.Error()):]
-		if !utf8.ValidString(details) || !strings.Contains(details, "... message truncated") || strings.Contains(details, message) {
-			t.Fatal("nested message was not safely truncated")
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			child := namedError(tc.message)
+			if got := nodeMessage(child); got != tc.want {
+				t.Fatalf("nested message: got %q, want %q", got, tc.want)
+			}
+			err := Errorf("context: %w", child)
+			output := fmt.Sprintf("%+v", err)
+			if !strings.HasPrefix(output, err.Error()+"\n\ntraces:\n") {
+				t.Fatal("root message was truncated")
+			}
+			details := output[len(err.Error()):]
+			if !utf8.ValidString(details) || !strings.Contains(details, strings.ReplaceAll(tc.want, "\n", "\n      ")) {
+				t.Fatal("nested message was not safely displayed")
+			}
+		})
+	}
+}
+
+func TestEmptyStackFormatting(t *testing.T) {
+	err := &singleError{trace: trace{message: "empty"}, child: New("child")}
+	got := fmt.Sprintf("%+v", Formatter(err))
+	if !strings.HasPrefix(got, "empty\n\ntraces:\n  root [capture]\n    root/0 [capture]\n") ||
+		!strings.Contains(got, "TestEmptyStackFormatting") ||
+		strings.Contains(got, "unavailable") {
+		t.Fatalf("empty stack suppressed child details:\n%s", got)
 	}
 }
 
