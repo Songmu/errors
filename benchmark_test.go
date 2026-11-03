@@ -75,11 +75,37 @@ func BenchmarkFrames(b *testing.B) {
 
 func BenchmarkFormatting(b *testing.B) {
 	err := Errorf("read: %w", Join(New("failed"), io.EOF))
-	for _, format := range []string{"%v", "%s", "%+v"} {
+	for _, format := range []string{"%v", "%s", "%+v", "%20.3s"} {
 		b.Run(format, func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
 				benchmarkText = fmt.Sprintf(format, err)
+			}
+		})
+	}
+}
+
+func BenchmarkDetailedShapes(b *testing.B) {
+	var deep error = New("leaf")
+	for range 16 {
+		deep = Errorf("context: %w", deep)
+	}
+	wide := make([]error, 32)
+	for i := range wide {
+		wide[i] = New("leaf")
+	}
+	for _, tc := range []struct {
+		name string
+		err  error
+	}{
+		{"deep", deep},
+		{"wide", Join(wide...)},
+		{"long-stack", recursiveError(maxStackPCs + 10)},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				benchmarkText = fmt.Sprintf("%+v", tc.err)
 			}
 		})
 	}
