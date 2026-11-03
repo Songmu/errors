@@ -44,9 +44,11 @@ indented `file:line`. Standard wrappers remain visible as untraced nodes.
 The tree format is library-specific, not a Go standard.
 
 The root message is complete whenever `Error()` succeeds. Nested library `Join`
-nodes show the number of causes instead of repeating their aggregate messages. Other nested
-messages are limited to four lines and 256 bytes, with an explicit truncation
-marker. This keeps deeply nested aggregates from flooding diagnostic output.
+nodes show the number of causes instead of repeating their aggregate messages.
+Nested standard-library joins instead show their aggregate messages, subject
+to the same four-line and 256-byte limits as other nested nodes. Omitted message
+content is marked explicitly. This keeps deeply nested aggregates from flooding
+diagnostic output.
 
 Standard `fmt.Errorf` and `errors.Join` do not propagate detailed formatting.
 If either is outermost, use the output-only adapter:
